@@ -1,0 +1,12 @@
+[project]
+name = "bioinfo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "chembl-webresource-client>=0.10.9",
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "rdkit>=2026.3.3",
+]
