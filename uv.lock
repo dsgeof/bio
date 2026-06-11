@@ -23,8 +23,10 @@ source = { virtual = "." }
 dependencies = [
     { name = "chembl-webresource-client" },
     { name = "numpy" },
+    { name = "openbabel" },
     { name = "pandas" },
     { name = "polars" },
+    { name = "py3dmol" },
     { name = "rdkit" },
 ]
 
@@ -32,8 +34,10 @@ dependencies = [
 requires-dist = [
     { name = "chembl-webresource-client", specifier = ">=0.10.9" },
     { name = "numpy", specifier = ">=2.4.6" },
+    { name = "openbabel", specifier = ">=3.2.0" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "polars", specifier = ">=1.41.2" },
+    { name = "py3dmol", specifier = ">=2.5.5" },
     { name = "rdkit", specifier = ">=2026.3.3" },
 ]
 
@@ -163,6 +167,19 @@ wheels = [
 ]
 
 [[package]]
+name = "openbabel"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/67/7e1c86fa3a932bba8d8c9dcef040687f1bce1f2903a29acd4fb5337bbea8/openbabel-3.2.0.tar.gz", hash = "sha256:332e6038146e0b69f9c32b8d71d6de153a095d98dce4663972c4a45e55449d01", size = 36460954, upload-time = "2026-05-26T20:39:25.519Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/bd/dc1484917ded358ca2be66972de9c010dbad02df6bbfc1f47e99404a5d08/openbabel-3.2.0-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:bb4b7d1d5244cce2fa3fce9bfcf5afafd960494b69d3b7417a3fb0988f1213d3", size = 11026017, upload-time = "2026-05-26T20:39:13.974Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/5f/4322533ef75c841f03bf8a2f333a3c40d2340133b6e7f55ca0cd59a7f634/openbabel-3.2.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:278e3c6ae79e8b2752a540cdc52a36b9dd956fcf811d18df5a663085ce77daff", size = 10559983, upload-time = "2026-05-26T20:39:16.177Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/87/3cf7258f9af22f5d0985fbe63b1ce4b3635699b338e847f724c1d2127e5c/openbabel-3.2.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:97b838e89ca6b2f563d6bcdf5d8a08974915e1006ad4aa5813262e35635b6c6f", size = 12082523, upload-time = "2026-05-26T20:39:18.426Z" },
+    { url = "https://files.pythonhosted.org/packages/07/40/fd97ad24f77b9c7bef6ba5d127f17d30008ea30ac494aa639b8aedfc6632/openbabel-3.2.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1ac9a735958d27cfa5811bd7b95a074d3f1b776afdff77e50b0cc7b531858a15", size = 12653161, upload-time = "2026-05-26T20:39:20.677Z" },
+    { url = "https://files.pythonhosted.org/packages/cf/16/27e8b0304948f9cbece9e0ec2c14326d6864127f411525112025d96fdc8c/openbabel-3.2.0-cp314-cp314-win_amd64.whl", hash = "sha256:73d016280ad3bc28b2b61df88c43a3a1bac69c8613429d23daee6d2b769312bc", size = 5649968, upload-time = "2026-05-26T20:39:22.596Z" },
+]
+
+[[package]]
 name = "pandas"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -259,6 +276,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/ed/f2d26ae02d92c2689056838ed59e2a626326ad23c2831d58637d25f6c82a/polars_runtime_32-1.41.2-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:e7016a3deb641b64a31447abbbee0f34bd020a6a9ae34ee6b743837def15e2a4", size = 54328561, upload-time = "2026-05-29T17:37:32.587Z" },
     { url = "https://files.pythonhosted.org/packages/9b/c4/9c3831cc885dc7769e59abf8f583821a5fb4403fd0e4eba0ccc6d47a3d4b/polars_runtime_32-1.41.2-cp310-abi3-win_amd64.whl", hash = "sha256:1e5e5377c315e0dcafdfb2a31adc546abbaeb3f9cb1864e6536523d2af473265", size = 51978643, upload-time = "2026-05-29T17:37:37.443Z" },
     { url = "https://files.pythonhosted.org/packages/cd/c6/79e9f3f270270d7ed5575d92b7bfef49f01abd9275447161275b23b553a8/polars_runtime_32-1.41.2-cp310-abi3-win_arm64.whl", hash = "sha256:843d96f69d18eca53429c1198e58891db7f18111f83b9c419bb45ad9d73eaed5", size = 46006901, upload-time = "2026-05-29T17:37:42.522Z" },
+]
+
+[[package]]
+name = "py3dmol"
+version = "2.5.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/ce/8fa27aa0fcf37a99df16f72d59300040dec61f3a5126c28d6b625bcb7f9e/py3dmol-2.5.5.tar.gz", hash = "sha256:cb102cc3370800a9ca7679774759f008e34a0f3a283778d85b0410849d370298", size = 7832, upload-time = "2026-05-23T14:08:08.553Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/5a/7fd1b784a87e96e0078f49a0a13a98b4c5f644ba5597a4a3b70a2ba3e613/py3dmol-2.5.5-py2.py3-none-any.whl", hash = "sha256:9717ea9a899ec641b458f53de538e5bae758281f5053be78bc2db0706ae60bcb", size = 7153, upload-time = "2026-05-23T14:08:07.733Z" },
 ]
 
 [[package]]
