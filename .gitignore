@@ -11,3 +11,4 @@ wheels/
 
 # Data files
 data/*
+chembl_data/*

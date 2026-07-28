@@ -32,6 +32,35 @@ import pandas as pd
 import requests
 
 
+def extract_downloaded_tarball(
+    tarball_path: str | Path,
+    destination_dir: str | Path,
+    *,
+    remove_archive: bool = False,
+) -> Path:
+    """
+    Extract an already-downloaded .tar.gz archive into destination_dir.
+
+    Returns the destination directory so callers can chain path discovery after
+    extraction.
+    """
+    tarball = Path(tarball_path)
+    destination = Path(destination_dir)
+
+    if not tarball.exists():
+        raise FileNotFoundError(f"Tarball not found: {tarball}")
+
+    destination.mkdir(parents=True, exist_ok=True)
+
+    with tarfile.open(tarball, "r:gz") as tar:
+        tar.extractall(destination)
+
+    if remove_archive:
+        tarball.unlink(missing_ok=True)
+
+    return destination
+
+
 # --------------------------------------------------------------------------- #
 # Fluent query builder (mimics chembl_webresource_client's .filter() style)
 # --------------------------------------------------------------------------- #
@@ -255,11 +284,12 @@ class ChEMBLLocalClient:
                         print(f"\r  {written / 1e9:.2f} GB / {total / 1e9:.2f} GB ({pct:.1f}%)", end="")
         print("\nDownload complete. Extracting...")
  
-        with tarfile.open(tarball_path, "r:gz") as tar:
-            tar.extractall(self.data_dir)
+        extract_downloaded_tarball(
+            tarball_path,
+            self.data_dir,
+            remove_archive=True,
+        )
 
-        tarball_path.unlink(missing_ok=True)
- 
         if not self.is_downloaded():
             raise RuntimeError(
                 "Extraction finished but no chembl_*.db file was found under "
@@ -293,4 +323,151 @@ class ChEMBLLocalClient:
  
     def __exit__(self, *exc) -> None:
         self.close()
+
+    # ------------------------------------------------------------------ #
+    # ChEMBL-API-style entry points -> QuerySet
+    # ------------------------------------------------------------------ #
+
+    # activities, molecules, compound_structures, targets, assays, documents
+    @property
+    def activities(self) -> QuerySet:
+        return QuerySet(self.connect(), "activities")
+ 
+    @property
+    def molecules(self) -> QuerySet:
+        return QuerySet(self.connect(), "molecule_dictionary")
+ 
+    @property
+    def compound_structures(self) -> QuerySet:
+        return QuerySet(self.connect(), "compound_structures")
+ 
+    @property
+    def targets(self) -> QuerySet:
+        return QuerySet(self.connect(), "target_dictionary")
+ 
+    @property
+    def assays(self) -> QuerySet:
+        return QuerySet(self.connect(), "assays")
+ 
+    @property
+    def documents(self) -> QuerySet:
+        return QuerySet(self.connect(), "docs")
+ 
+    # ------------------------------------------------------------------ #
+    # Raw SQL escape hatch
+    # ------------------------------------------------------------------ #
+    
+    def query(self, sql: str, params: Optional[Iterable[Any]] = None) -> pd.DataFrame:
+        """Run arbitrary SQL and get a DataFrame back."""
+        return pd.read_sql_query(sql, self.connect(), params=params or [])
+ 
+    # ------------------------------------------------------------------ #
+    # Convenience methods (common ChEMBL API-style lookups)
+    # ------------------------------------------------------------------ #
+ 
+    def search_target(self, name: str, organism: Optional[str] = None) -> pd.DataFrame:
+        """Search targets by (partial) preferred name, similar to
+        `new_client.target.filter(pref_name__icontains=name)`."""
+        qs = self.targets.filter(pref_name__icontains=name)
+        if organism:
+            qs = qs.filter(organism__icontains=organism)
+        return qs.to_df()
+ 
+    def search_molecule(self, name: str) -> pd.DataFrame:
+        """Search molecules by (partial) preferred name."""
+        return self.molecules.filter(pref_name__icontains=name).to_df()
+ 
+    def get_activities_for_target(
+        self,
+        target_chembl_id: str,
+        standard_types: Optional[Iterable[str]] = None,
+        pchembl_value_min: Optional[float] = None,
+        include_structures: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Convenience method returning activities for a target joined with molecule
+        preferred names and (optionally) canonical SMILES -- the shape you'd get
+        back from `new_client.activity.filter(target_chembl_id=..., standard_type__in=...)`
+        but pulled from the local database and pre-joined.
+        """
+        joins = """
+            FROM activities a
+            JOIN assays s ON a.assay_id = s.assay_id
+            JOIN molecule_dictionary m ON a.molregno = m.molregno
+        """
+        cols = [
+            "a.activity_id",
+            "a.molregno",
+            "m.chembl_id AS molecule_chembl_id",
+            "m.pref_name AS molecule_pref_name",
+            "s.chembl_id AS assay_chembl_id",
+            "s.assay_type",
+            "a.standard_type",
+            "a.standard_relation",
+            "a.standard_value",
+            "a.standard_units",
+            "a.pchembl_value",
+            "s.target_chembl_id" if False else "a.target_chembl_id" if False else None,
+        ]
+        # target_chembl_id lives on assays in ChEMBL's schema
+        cols = [c for c in cols if c]
+        cols.append("s.target_chembl_id")
+ 
+        if include_structures:
+            joins += " JOIN compound_structures cs ON a.molregno = cs.molregno"
+            cols.append("cs.canonical_smiles")
+ 
+        where = ['s.target_chembl_id = ?']
+        params: list[Any] = [target_chembl_id]
+ 
+        if standard_types:
+            placeholders = ",".join("?" for _ in standard_types)
+            where.append(f"a.standard_type IN ({placeholders})")
+            params.extend(standard_types)
+ 
+        if pchembl_value_min is not None:
+            where.append("a.pchembl_value >= ?")
+            params.append(pchembl_value_min)
+ 
+        sql = f"SELECT {', '.join(cols)} {joins} WHERE {' AND '.join(where)}"
+        return self.query(sql, params)
+ 
+    def get_molecule(self, chembl_id: str) -> pd.DataFrame:
+        """Look up a single molecule by its ChEMBL ID, including structure."""
+        sql = """
+            SELECT m.*, cs.canonical_smiles, cs.standard_inchi, cs.standard_inchi_key
+            FROM molecule_dictionary m
+            LEFT JOIN compound_structures cs ON m.molregno = cs.molregno
+            WHERE m.chembl_id = ?
+        """
+        return self.query(sql, [chembl_id])
+ 
+    def table_names(self) -> list[str]:
+        """List every table in the local database (useful for exploring the schema)."""
+        df = self.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        return df["name"].tolist()
+ 
+ 
+if __name__ == "__main__":
+
+    extract_downloaded_tarball(
+        tarball_path="./chembl_data/chembl_37_sqlite.tar.gz",
+        destination_dir="./chembl_data",
+        remove_archive=False,
+    )
+
+    # # Minimal smoke test / usage example.
+    # client = ChEMBLLocalClient(data_dir="./chembl_data")
+    # client.download_database()  # no-op if already downloaded
+ 
+    # with client:
+    #     egfr = client.search_target("Epidermal growth factor receptor", organism="Homo sapiens")
+    #     print(egfr[["chembl_id", "pref_name", "organism"]].head())
+ 
+    #     if not egfr.empty:
+    #         target_id = egfr.iloc[0]["chembl_id"]
+    #         acts = client.get_activities_for_target(
+    #             target_id, standard_types=["IC50"], pchembl_value_min=5.0
+    #         )
+    #         print(acts.head())
  
