@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-def get_lipinski_descriptors(smiles, verbose=False) -> dict:
+def get_lipinski_descriptors(smiles: str, verbose: bool = False) -> dict:
     """
     Calculate Lipinski's Rule of Five descriptors for a given SMILES string.
     Parameters:
@@ -48,3 +48,136 @@ def convert_ic50_to_pic50(df: pd.DataFrame, ic50_col: str = 'standard_value', pi
     ic50.clip(lower=None, upper=1e8, inplace=True)
     df[pic50_col] = -np.log10(ic50 * 1e-9)
     return df
+
+
+def draw_ranked_molecules(molecules: pd.DataFrame, sort_by_column: str) -> Draw.MolsToGridImage:
+    """
+    Draw molecules sorted by a given column.
+
+    Parameters
+    ----------
+    molecules : pandas.DataFrame
+        Molecules (with "ROMol" and "name" columns and a column to sort by.
+    sort_by_column : str
+        Name of the column used to sort the molecules by.
+
+    Returns
+    -------
+    Draw.MolsToGridImage
+        2D visualization of sorted molecules.
+    """
+
+    molecules_sorted = molecules.sort_values([sort_by_column], ascending=False).reset_index()
+    return Draw.MolsToGridImage(
+        molecules_sorted["ROMol"],
+        legends=[
+            f"#{index+1} {molecule['name']}, similarity={molecule[sort_by_column]:.2f}"
+            for index, molecule in molecules_sorted.iterrows()
+        ],
+        molsPerRow=3,
+        subImgSize=(450, 150),
+    )
+
+def get_enrichment_data(molecules: pd.DataFrame, similarity_measure: str, pic50_cutoff: float) -> pd.DataFrame:
+    """
+    Calculates x and y values for enrichment plot:
+        x - % ranked dataset
+        y - % true actives identified
+
+    Parameters
+    ----------
+    molecules : pandas.DataFrame
+        Molecules with similarity values to a query molecule.
+    similarity_measure : str
+        Column name which will be used to sort the DataFrame．
+    pic50_cutoff : float
+        pIC50 cutoff value used to discriminate active and inactive molecules.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Enrichment data: Percentage of ranked dataset by similarity vs. percentage of identified true actives.
+    """
+
+    # Get number of molecules in data set
+    molecules_all = len(molecules)
+
+    # Get number of active molecules in data set
+    actives_all = sum(molecules["pIC50"] >= pic50_cutoff)
+
+    # Initialize a list that will hold the counter for actives and molecules while iterating through our dataset
+    actives_counter_list = []
+
+    # Initialize counter for actives
+    actives_counter = 0
+
+    # Note: Data must be ranked for enrichment plots:
+    # Sort molecules by selected similarity measure
+    molecules.sort_values([similarity_measure], ascending=False, inplace=True)
+
+    # Iterate over the ranked dataset and check each molecule if active (by checking bioactivity)
+    for value in molecules["pIC50"]:
+        if value >= pic50_cutoff:
+            actives_counter += 1
+        actives_counter_list.append(actives_counter)
+
+    # Transform number of molecules into % ranked dataset
+    molecules_percentage_list = [i / molecules_all for i in range(1, molecules_all + 1)]
+
+    # Transform number of actives into % true actives identified
+    actives_percentage_list = [i / actives_all for i in actives_counter_list]
+
+    # Generate DataFrame with x and y values as well as label
+    enrichment = pd.DataFrame(
+        {
+            "% ranked dataset": molecules_percentage_list,
+            "% true actives identified": actives_percentage_list,
+        }
+    )
+    return enrichment
+
+
+def calculate_enrichment_factor_random(ranked_dataset_percentage_cutoff: float) -> float:
+    """
+    Get the random enrichment factor for a given percentage of the ranked dataset.
+
+    Parameters
+    ----------
+    ranked_dataset_percentage_cutoff : float or int
+        Percentage of ranked dataset to be included in enrichment factor calculation.
+
+    Returns
+    -------
+    float
+        Random enrichment factor.
+    """
+
+    enrichment_factor_random = round(float(ranked_dataset_percentage_cutoff), 1)
+    return enrichment_factor_random
+
+
+def calculate_enrichment_factor_optimal(molecules: pd.DataFrame, ranked_dataset_percentage_cutoff: float, pic50_cutoff: float) -> float:
+    """
+    Get the optimal random enrichment factor for a given percentage of the ranked dataset.
+
+    Parameters
+    ----------
+    molecules : pandas.DataFrame
+        the DataFrame with all the molecules and pIC50.
+    ranked_dataset_percentage_cutoff : float or int
+        Percentage of ranked dataset to be included in enrichment factor calculation.
+    activity_cutoff: float
+        pIC50 cutoff value used to discriminate active and inactive molecules
+
+    Returns
+    -------
+    float
+        Optimal enrichment factor.
+    """
+
+    ratio = sum(molecules["pIC50"] >= pic50_cutoff) / len(molecules) * 100
+    if ranked_dataset_percentage_cutoff <= ratio:
+        enrichment_factor_optimal = round(100 / ratio * ranked_dataset_percentage_cutoff, 1)
+    else:
+        enrichment_factor_optimal = 100.0
+    return enrichment_factor_optimal
