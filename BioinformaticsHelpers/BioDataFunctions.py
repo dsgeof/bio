@@ -1,4 +1,4 @@
-from rdkit import Chem
+from rdkit import Chem, DataStructs
 from rdkit.Chem import Descriptors, Draw, AllChem, Crippen
 import pandas as pd
 import numpy as np
@@ -181,3 +181,32 @@ def calculate_enrichment_factor_optimal(molecules: pd.DataFrame, ranked_dataset_
     else:
         enrichment_factor_optimal = 100.0
     return enrichment_factor_optimal
+
+
+def tanimoto_distance_matrix(fp_list: list) -> list:
+    """Calculate Tanimoto similarity and distance matrix for fingerprint list"""
+    dissimilarity_matrix = []
+    # Notice how we are deliberately skipping the first and last items in the list
+    # because we don't need to compare them against themselves
+    for i in range(1, len(fp_list)):
+        # Compare the current fingerprint against all the previous ones in the list
+        similarities = DataStructs.BulkTanimotoSimilarity(fp_list[i], fp_list[:i])
+        # Since we need a distance matrix, calculate 1-x for every element in similarity matrix
+        dissimilarity_matrix.extend([1 - x for x in similarities])
+    return dissimilarity_matrix
+
+from rdkit.DataStructs import BulkTanimotoSimilarity
+
+
+def tanimoto_distance_matrix(fp_list):
+    """Calculate condensed distance matrix for fingerprint list."""
+    n = len(fp_list)
+    dissimilarity_matrix = []
+
+    for i in range(1, n):
+        # Calculates similarity of fp_list[i] against fp_list[0...i-1]
+        similarities = BulkTanimotoSimilarity(fp_list[i], fp_list[:i])
+        # Since we need a distance matrix, calculate 1-x for every element in similarity matrix
+        dissimilarity_matrix.extend([1.0 - x for x in similarities])
+
+    return dissimilarity_matrix
