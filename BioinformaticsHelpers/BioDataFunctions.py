@@ -1,5 +1,6 @@
 from rdkit import Chem, DataStructs
-from rdkit.Chem import Descriptors, Draw, AllChem, Crippen
+from rdkit.Chem import Descriptors, Draw, AllChem, Crippen, rdFMCS, Geometry
+from copy import deepcopy
 import pandas as pd
 import numpy as np
 
@@ -210,3 +211,50 @@ def tanimoto_distance_matrix(fp_list):
         dissimilarity_matrix.extend([1.0 - x for x in similarities])
 
     return dissimilarity_matrix
+
+
+# Helper: Draw molecules with highlighted MCS
+def highlight_molecule_substructure(molecules: list, mcs: rdFMCS.MCSResult, number: int, label: bool=True, same_orientation: bool=True, **kwargs):
+    """Highlight the MCS in our query molecules 
+    
+    Args:
+        molecules (list): List of RDKit molecule objects
+        mcs (rdFMCS.MCSResult): MCS result object from rdFMCS
+        number (int): Number of molecules to display
+        label (bool, optional): Whether to label the molecules with their names. Defaults to True.
+        same_orientation (bool, optional): Whether to align the molecules in the same orientation. Defaults to True.
+        **kwargs: Additional keyword arguments for Draw.MolsToGridImage
+    Returns:
+        PIL.Image: Image of the molecules with highlighted MCS
+    """
+    molecules = deepcopy(molecules)
+    # convert MCS to molecule
+    pattern = Chem.MolFromSmarts(mcs.smartsString)
+    # find the matching atoms in each molecule
+    matching = [molecule.GetSubstructMatch(pattern) for molecule in molecules[:number]]
+
+    legends = None
+    if label:
+        legends = [molname.GetProp("_Name") for molname in molecules]
+
+    # Align by matched substructure so they are depicted in the same orientation
+    # Adapted from: https://gist.github.com/greglandrum/82d9a86acb3b00d3bb1df502779a5810
+    if same_orientation:
+        mol, match = molecules[0], matching[0]
+        AllChem.Compute2DCoords(mol)
+        coords = [mol.GetConformer().GetAtomPosition(x) for x in match]
+        coords2D = [Geometry.Point2D(pt.x, pt.y) for pt in coords]
+        for mol, match in zip(molecules[1:number], matching[1:number]):
+            if not match:
+                continue
+            coord_dict = {match[i]: coord for i, coord in enumerate(coords2D)}
+            AllChem.Compute2DCoords(mol, coordMap=coord_dict)
+
+    return Draw.MolsToGridImage(
+        molecules[:number],
+        legends=legends,
+        molsPerRow=5,
+        highlightAtomLists=matching[:number],
+        subImgSize=(200, 200),
+        **kwargs,
+    )
