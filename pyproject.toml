@@ -9,6 +9,7 @@ dependencies = [
     "bs4>=0.0.2",
     "chembl-webresource-client>=0.10.9",
     "ipywidgets>=8.1.8",
+    "jupyterlab>=4.6.3",
     "jupyterlab-widgets>=3.0.16",
     "lazypredict>=0.3.0",
     "matplotlib>=3.11.0",
@@ -29,3 +30,7 @@ dependencies = [
     "teachopencadd>=2026.4.1",
     "tqdm>=4.68.3",
 ]
+
+#[tool.uv]
+#environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'", "sys_platform == 'win32'"]
+
