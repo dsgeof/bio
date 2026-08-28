@@ -1,4 +1,4 @@
-# BIOINFORMATICS AND DRUG DISCOVERY
+# Bioinformatic - Drug Discovery
 
 ## Notebooks ~/notebooks
 Exploratory projects and general learning notes are stored in ~/notebooks; specific projects and notes are contained in subdirectories:
